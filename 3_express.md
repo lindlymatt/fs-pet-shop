@@ -36,6 +36,14 @@ Your task is to convert the Node HTTP server you built yesterday into an Express
 | `GET`          | `/pets/2`   | `404`           | `text/plain`          | `Not Found`                                                                                                |
 | `GET`          | `/pets/-1`  | `404`           | `text/plain`          | `Not Found`                                                                                                |
 
+GET - /pets - 200 - application/json - `[{ "age": 7, "kind": "rainbow", "name": "fido" }, { "age": 5, "kind": "snake", "name": "Buttons" }]`
+
+GET - /pets/0 - 200 - application/json - { "age": 7, "kind": "rainbow", "name": "fido" }
+
+GET - /pets/2 - 404 - text/plain - "Not Found"
+
+GET - /pets/-1 - 404 - text/plain - "Not Found"
+
 Like before, start the HTTP server with `nodemon`.
 
 ```shell
