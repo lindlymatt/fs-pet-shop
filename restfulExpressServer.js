@@ -11,9 +11,18 @@ var morgan = require('morgan');
 var express = require('express');
 var app = express();
 var port = process.env.PORT || 8000;
+// var auth = require('basic-auth-connect');
 app.disable('x-powered-by');
 app.disable('ETag');
 app.disable('Content-Length');
+// app.use(auth((user, pass) => {
+//   if(user === 'admin' && pass === 'meowmix') {
+//     return true;
+//   }
+//   else {
+//     express.setHeader('Content-Type', 'text/plain');
+//   }
+// }));
 app.use(bodyParser.json());
 app.use(morgan('short'));
 
@@ -51,13 +60,18 @@ app.get('/pets/:id', (req, res, next) => {
     let pets = JSON.parse(petsData);
 
     if (id < 0 || id >= pets.length || Number.isNaN(id)) {
-      return next();
+      res.set('Content-Type', 'text/plain');
+      return res.sendStatus(404);
     }
 
     res.set('Content-Type', 'application/json');
     res.send(pets[id]);
   });
 });
+
+// app.get('/noAuth', (req, res) => {
+//  res.sendStatus(401);
+// });
 
 // if(req.body.age === undefined || isNaN(req.body.age) || req.body.kind === undefined || req.body.name === undefined) {
 //   return res.sendStatus(400);
@@ -75,10 +89,10 @@ app.get('/pets/:id', (req, res, next) => {
 //   res.send(newPet);
 // }
 
-app.post('/pets', (req, res) => {
+app.post('/pets', (req, res, next) => {
   fs.readFile(petsPath, 'utf8', (err, data) => {
     if (err) {
-      return res.sendStatus(500);
+      return next(err);
     }
     else {
       if(req.body.age && req.body.kind && req.body.name) {
@@ -106,7 +120,7 @@ app.post('/pets', (req, res) => {
   });
 });
 
-app.put('/pets/:id', 'utf8', (err, req, res, next) => {
+app.put('/pets/:id', (req, res, next) => {
   var petId = req.params.id;
 
   fs.readFile(petsPath, 'utf8', (err, data) => {
@@ -115,6 +129,11 @@ app.put('/pets/:id', 'utf8', (err, req, res, next) => {
     }
     else {
       var pets = JSON.parse(data);
+      if (petId < 0 || petId >= pets.length || Number.isNaN(petId)) {
+        res.set('Content-Type', 'text/plain');
+        return res.sendStatus(404);
+      }
+
       if(req.body.age && req.body.kind && req.body.name) {
         pets[petId] = {
             'age':req.body.age,
@@ -125,7 +144,7 @@ app.put('/pets/:id', 'utf8', (err, req, res, next) => {
 
         fs.writeFile(petsPath, petsJSON, err => {
           if (err) {
-            return res.setStatus(500);
+            return next(err);
           }
           res.send(pets[petId]);
         });
@@ -138,14 +157,21 @@ app.put('/pets/:id', 'utf8', (err, req, res, next) => {
   });
 });
 
-app.destroy('/pets/:id', 'utf8', (err, req, res, next) => {
+app.delete('/pets/:id', (req, res, next) => {
   let petId = req.params.id;
-  if(err) {
-    return next(err);
-  }
-  else {
-    fs.readFile(petsPath, 'utf8', (err, data) => {
+
+  fs.readFile(petsPath, 'utf8', (err, data) => {
+    if(err) {
+      return next(err);
+    }
+    else {
       var pets = JSON.parse(data);
+
+      if (petId < 0 || petId >= pets.length || Number.isNaN(petId)) {
+        res.set('Content-Type', 'text/plain');
+        return res.sendStatus(404);
+      }
+
       var deletedPet = pets[petId];
       pets.splice(petId, 1);
       var petsJSON = JSON.stringify(pets);
@@ -156,55 +182,52 @@ app.destroy('/pets/:id', 'utf8', (err, req, res, next) => {
         }
         res.send(deletedPet);
       });
-    });
-  }
+    }
+  });
 });
 
-app.patch('/pets/:id', 'utf8', (err, req, res, next) => {
+app.patch('/pets/:id', (req, res, next) => {
   let petId = req.params.id;
-  if(err) {
-    return next(err);
-  }
-  else {
-    fs.readFile(petsPath, 'utf8', (err, data) => {
-      var pets = JSON.parse(data);
+  fs.readFile(petsPath, 'utf8', (err, data) => {
+    var pets = JSON.parse(data);
 
-      if(req.body) {
-        if(req.body.age) {
-          pets[petId].age = req.body.age;
-        }
-        else if(req.body.kind) {
-          pets[petId].kind = req.body.kind;
-        }
-        else if(req.body.name) {
-          pets[petId].name = req.body.name;
-        }
-        else {
-          return next();
-        }
+    if (petId < 0 || petId >= pets.length || Number.isNaN(petId)) {
+      res.set('Content-Type', 'text/plain');
+      return res.sendStatus(404);
+    }
+
+    if(req.body) {
+      pets[petId] = {
+        age:req.body.age || pets[petId].age,
+        kind:req.body.kind || pets[petId].kind,
+        name:req.body.name || pets[petId].name
+      };
+    }
+    else {
+      res.set('Content-Type', 'text/plain');
+      return res.sendStatus(400);
+    }
+    var petsJSON = JSON.stringify(pets);
+
+    fs.writeFile(petsPath, petsJSON, err => {
+      if (err) {
+        return next(err);
       }
-      var petsJSON = JSON.stringify(pets);
-
-      fs.writeFile(petsPath, petsJSON, err => {
-        if (err) {
-          next(err);
-        }
+      else {
         res.send(pets[petId]);
-      });
+      }
     });
-  }
+  });
 });
 
 // Middleware to test 500 errors, if not a 404 error, it will slip through this error handling (since 404 is not an error).
 
 app.use((err, req, res, next) => {
-  if(err) {
-    console.error(err.stack);
-    res.sendStatus(500);
-  }
-  else {
-    next();
-  }
+  res.status(err.status || 500);
+  res.render('error', {
+      message: err.message,
+      error: err
+  });
 });
 
 // After slipping through the error handling, this middleware handles the 404 errors that occur.
