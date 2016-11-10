@@ -75,27 +75,31 @@ app.get('/pets/:id', (req, res, next) => {
 
 app.post('/pets', (req, res) => {
   fs.readFile(petsPath, 'utf8', (err, data) => {
-    var pets = JSON.parse(data);
-
     if (err) {
-      return res.setStatus(500);
+      return res.sendStatus(500);
     }
     else {
-      var newPet = {
-          'age':req.body.age,
-          'kind':req.body.kind,
-          'name':req.body.name
-      };
-      pets.push(newPet);
+      if(req.body.age && req.body.kind && req.body.name) {
+        var pets = JSON.parse(data);
+        var newPet = {
+            'age':req.body.age,
+            'kind':req.body.kind,
+            'name':req.body.name
+        };
+        pets.push(newPet);
+        var petsJSON = JSON.stringify(pets);
 
-      var petsJSON = JSON.stringify(pets);
-
-      fs.writeFile(petsPath, petsJSON, err => {
-        if (err) {
-          return res.setStatus(500);
-        }
-        res.send(newPet);
-      });
+        fs.writeFile(petsPath, petsJSON, err => {
+          if (err) {
+            return res.setStatus(500);
+          }
+          res.send(newPet);
+        });
+      }
+      else {
+        res.set('Content-Type', 'text/plain');
+        res.sendStatus(400);
+      }
     }
   });
 });
@@ -112,7 +116,7 @@ app.use((err, req, res, next) => {
   }
 });
 
-// After slipping through the error handling, this middleware handles the 404 errors that occur. 
+// After slipping through the error handling, this middleware handles the 404 errors that occur.
 
 app.use((req, res) => {
   res.set('Content-Type', 'text/plain');
