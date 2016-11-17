@@ -15,6 +15,7 @@ var port = process.env.PORT || 8000;
 app.disable('x-powered-by');
 app.disable('ETag');
 app.disable('Content-Length');
+
 // app.use(auth((user, pass) => {
 //   if(user === 'admin' && pass === 'meowmix') {
 //     return true;
@@ -23,6 +24,7 @@ app.disable('Content-Length');
 //     express.setHeader('Content-Type', 'text/plain');
 //   }
 // }));
+
 app.use(bodyParser.json());
 app.use(morgan('short'));
 
@@ -193,7 +195,7 @@ app.patch('/pets/:id', (req, res, next) => {
 
     if (petId < 0 || petId >= pets.length || Number.isNaN(petId)) {
       res.set('Content-Type', 'text/plain');
-      return res.sendStatus(404);
+      return next(err);
     }
 
     if(req.body) {
